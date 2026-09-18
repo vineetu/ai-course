@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Survey responses</title>
+  <style>
+    :root { color-scheme: light only; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: #fafaf9;
+      color: #1c1c1c;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 16px;
+      line-height: 1.5;
+    }
+    main {
+      max-width: 620px;
+      margin: 0 auto;
+      padding: 48px 20px 72px;
+    }
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 600;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+    }
+    .count {
+      margin: 0 0 28px;
+      color: #6b6b6b;
+    }
+    .count[hidden],
+    .status[hidden],
+    .more-wrap[hidden] { display: none; }
+    .status {
+      margin: 0 0 28px;
+      color: #6b6b6b;
+    }
+    .status.error { color: #b3261e; }
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+    }
+    .item {
+      padding: 16px 0;
+      border-bottom: 1px solid #e8e8e6;
+    }
+    .item:first-child { border-top: 1px solid #e8e8e6; }
+    .name { font-weight: 600; }
+    .meta {
+      margin-top: 4px;
+      color: #6b6b6b;
+      font-size: 14px;
+    }
+    .more-wrap { margin: 24px 0 0; }
+    a {
+      color: #555;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+    a:hover { color: #1c1c1c; }
+    a:focus-visible {
+      outline: 2px solid #0070d1;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Survey responses</h1>
+    <p class="count" id="count" hidden></p>
+    <p class="status" id="status">Loading…</p>
+    <ul id="list"></ul>
+    <p class="more-wrap" id="more-wrap" hidden><a href="results.html" id="more">Load more</a></p>
+  </main>
+  <script>
+    const API = '/v1/u/vineetu/sites/ai-workshop-survey';
+    const countEl = document.getElementById('count');
+    const statusEl = document.getElementById('status');
+    const listEl = document.getElementById('list');
+    const moreWrap = document.getElementById('more-wrap');
+    const moreLink = document.getElementById('more');
+
+    let cursor = null;
+    let shown = 0;
+    let loading = false;
+
+    function mcpSummary(data) {
+      const mcp = data && data.mcp;
+      if (mcp === 'uses') {
+        const mcps = Array.isArray(data.mcps) ? data.mcps.slice() : [];
+        const other = data.mcps_other && String(data.mcps_other).trim();
+        if (other) mcps.push(other);
+        return mcps.length ? 'Uses MCPs (' + mcps.join(', ') + ')' : 'Uses MCPs';
+      }
+      if (mcp === 'heard') return 'Heard of MCPs, but does not use any';
+      if (mcp === 'no') return 'Not yet';
+      return '';
+    }
+
+    function toolSummary(data) {
+      const tools = Array.isArray(data.tools) ? data.tools.slice() : [];
+      const other = data.tools_other && String(data.tools_other).trim();
+      if (other) tools.push(other);
+      return tools.length ? tools.join(', ') : 'No tools listed';
+    }
+
+    function formatDate(value) {
+      if (!value) return '';
+      const d = new Date(value);
+      if (Number.isNaN(d.getTime())) return '';
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function summarize(item) {
+      const data = item.data || {};
+      const parts = [toolSummary(data)];
+      if (data.os) parts.push(data.os);
+      const mcp = mcpSummary(data);
+      if (mcp) parts.push(mcp);
+      const date = formatDate(item.created_at || data.ts);
+      if (date) parts.push(date);
+      return parts.join(' · ');
+    }
+
+    function renderItem(item) {
+      const data = item.data || {};
+      const li = document.createElement('li');
+      li.className = 'item';
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = (data.name && String(data.name).trim()) || 'Unnamed';
+      const meta = document.createElement('div');
+      meta.className = 'meta';
+      meta.textContent = summarize(item);
+      li.appendChild(name);
+      li.appendChild(meta);
+      listEl.appendChild(li);
+    }
+
+    function setCount() {
+      countEl.hidden = shown === 0;
+      countEl.textContent = shown === 1 ? '1 response' : shown + ' responses';
+    }
+
+    async function loadPage(before) {
+      const qs = '?limit=100' + (before ? '&before=' + encodeURIComponent(before) : '');
+      const res = await fetch(API + '/collections/responses' + qs, {
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-SH-CSRF': '1' }
+      });
+      if (!res.ok) throw new Error('not ok');
+      return res.json();
+    }
+
+    async function load(initial) {
+      if (loading) return;
+      loading = true;
+      if (!initial) moreLink.textContent = 'Loading…';
+      try {
+        const body = await loadPage(initial ? null : cursor);
+        const items = (body && Array.isArray(body.items)) ? body.items : [];
+        items.forEach(function (item) {
+          if (!item || !item.data || item.data.test === true) return;
+          renderItem(item);
+          shown += 1;
+        });
+        cursor = body && body.next ? body.next : null;
+        moreWrap.hidden = !cursor;
+        moreLink.textContent = 'Load more';
+        setCount();
+        if (initial && shown === 0) {
+          statusEl.className = 'status';
+          statusEl.textContent = 'No responses yet.';
+          statusEl.hidden = false;
+        } else {
+          statusEl.hidden = true;
+        }
+      } catch (err) {
+        moreLink.textContent = 'Load more';
+        statusEl.className = 'status error';
+        statusEl.textContent = initial ? "Couldn't load responses." : "Couldn't load more responses.";
+        statusEl.hidden = false;
+      } finally {
+        loading = false;
+      }
+    }
+
+    moreLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      if (cursor) load(false);
+    });
+
+    load(true);
+  </script>
+</body>
+</html>

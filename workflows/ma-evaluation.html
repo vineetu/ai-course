@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M&amp;A evaluation, with a sentiment layer</title>
+<style>
+  :root { color-scheme: only light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #fafaf9;
+    color: #1c1c1c;
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  a {
+    color: #0070d1;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  a:hover { color: #1c1c1c; }
+
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px 20px;
+    flex-wrap: wrap;
+    padding: 18px 0 16px;
+    border-bottom: 1px solid #e7e5e4;
+    font-size: 13px;
+    color: #57534e;
+  }
+  nav a { font-size: 13px; }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+  }
+  .sub {
+    margin: 0;
+    color: #57534e;
+    font-size: 16px;
+    line-height: 1.45;
+    max-width: 38em;
+  }
+  .page-head { padding: 36px 0 8px; }
+
+  section { padding: 40px 0 0; }
+  h2 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #57534e;
+    margin: 0 0 14px;
+  }
+
+  .quote {
+    margin: 0 0 12px;
+    padding: 14px 16px;
+    border: 1px solid #e7e5e4;
+    border-left: 2px solid #1c1c1c;
+    font-size: 16px;
+    line-height: 1.45;
+    color: #1c1c1c;
+  }
+  .note {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #57534e;
+  }
+
+  /* Workflow */
+  .flow {
+    display: grid;
+    grid-template-columns: 1fr 20px 1fr 20px 1fr;
+    gap: 0 6px;
+    align-items: start;
+  }
+  .stage-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #57534e;
+    margin: 0 0 8px;
+  }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .box {
+    border: 1px solid #e7e5e4;
+    background: #fff;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: #1c1c1c;
+  }
+  .box-accent {
+    border: 1.5px solid #0070d1;
+    padding: 14px 14px 12px;
+  }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 72px;
+    padding-top: 22px;
+  }
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .steps li {
+    position: relative;
+    padding: 0 0 12px 18px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #1c1c1c;
+  }
+  .steps li:last-child { padding-bottom: 0; }
+  .steps li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 6px;
+    height: 6px;
+    border: 1.5px solid #a8a29e;
+    background: #fff;
+    border-radius: 50%;
+  }
+  .steps li::after {
+    content: "";
+    position: absolute;
+    left: 3.5px;
+    top: 13px;
+    bottom: 0;
+    width: 1px;
+    background: #e7e5e4;
+  }
+  .steps li:last-child::after { display: none; }
+
+  /* Chart */
+  .chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    color: #1c1c1c;
+    letter-spacing: -0.01em;
+  }
+  .chart-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chart {
+    display: block;
+    width: 100%;
+    min-width: 620px;
+    height: auto;
+  }
+
+  /* Three cards */
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .card {
+    border: 1px solid #e7e5e4;
+    background: #fff;
+    padding: 16px 16px 18px;
+  }
+  .card strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 650;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .card p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #57534e;
+  }
+
+  /* Sentiment */
+  .sentiment {
+    border: 1px solid #e7e5e4;
+    background: #fff;
+  }
+  .sentiment-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid #e7e5e4;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.4;
+    color: #1c1c1c;
+  }
+  .sentiment-body { padding: 4px 16px; }
+  .flag {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 11px 0;
+    border-bottom: 1px solid #e7e5e4;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #1c1c1c;
+  }
+  .flag:last-child { border-bottom: none; }
+  .flag p { margin: 0; }
+  .swatch {
+    width: 10px;
+    height: 10px;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+  .swatch-watch { background: #b45309; }
+  .swatch-positive { background: #1a7f37; }
+  .sentiment-foot {
+    padding: 14px 16px;
+    border-top: 1px solid #e7e5e4;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #1c1c1c;
+  }
+  .sentiment-note { margin-top: 12px; }
+
+  /* Before / after */
+  .ba {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+  .ba p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #1c1c1c;
+  }
+  .ba p span {
+    color: #57534e;
+    font-weight: 600;
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0 0 8px;
+  }
+
+  footer {
+    margin-top: 48px;
+    padding: 18px 0 56px;
+    border-top: 1px solid #e7e5e4;
+    font-size: 13px;
+    color: #57534e;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px 20px;
+    flex-wrap: wrap;
+  }
+  footer p { margin: 0; }
+
+  @media (max-width: 600px) {
+    .flow {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+    .flow-arrow {
+      min-height: 0;
+      height: 28px;
+      padding: 0;
+    }
+    .flow-arrow svg { transform: rotate(90deg); }
+    .cards { grid-template-columns: 1fr; }
+    .ba { grid-template-columns: 1fr; gap: 20px; }
+    section { padding: 32px 0 0; }
+    .page-head { padding: 28px 0 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <span>AI workshop · workflows</span>
+  <a href="../revenue-concentration/">← Revenue concentration</a>
+</nav>
+
+<header class="page-head">
+  <h1>M&amp;A evaluation, with a sentiment layer</h1>
+  <p class="sub">Is this studio worth acquiring — and what does the world currently think of it?</p>
+</header>
+
+<section>
+  <h2>What is this?</h2>
+  <p>M&amp;A — mergers and acquisitions — is one company buying another. Evaluation is the homework on a candidate studio: is it a good business, what is it worth, what could go wrong. Nobody knows a studio's future, so finance brackets the price from three directions:</p>
+  <svg viewBox="0 0 700 240" role="img" aria-label="Three valuation methods produce overlapping ranges on a price line" style="width:100%;height:auto;display:block;margin:12px 0 4px">
+    <rect x="272" y="44" width="155" height="152" fill="#0070d1" opacity="0.08"/>
+    <text x="350" y="30" font-size="12" fill="#1c1c1c" text-anchor="middle">the ranges overlap here — that is the price conversation</text>
+    <line x1="349" y1="36" x2="349" y2="44" stroke="#57534e" stroke-width="1"/>
+    <text x="164" y="60" font-size="11" fill="#57534e">Comparables · what similar studios are valued at</text>
+    <rect x="164" y="66" width="372" height="12" rx="6" fill="#d6d3d1"/>
+    <text x="156" y="76" text-anchor="end" font-size="11" fill="#57534e">$480M</text>
+    <text x="544" y="76" font-size="11" fill="#57534e">$720M</text>
+    <text x="272" y="106" font-size="11" fill="#57534e">Precedent deals · what buyers actually paid</text>
+    <rect x="272" y="112" width="357" height="12" rx="6" fill="#d6d3d1"/>
+    <text x="264" y="122" text-anchor="end" font-size="11" fill="#57534e">$550M</text>
+    <text x="637" y="122" font-size="11" fill="#57534e">$780M</text>
+    <text x="86" y="152" font-size="11" fill="#57534e">DCF · future cash flows, discounted to today</text>
+    <rect x="86" y="158" width="341" height="12" rx="6" fill="#d6d3d1"/>
+    <text x="78" y="168" text-anchor="end" font-size="11" fill="#57534e">$430M</text>
+    <text x="435" y="168" font-size="11" fill="#57534e">$650M</text>
+    <line x1="40" y1="210" x2="660" y2="210" stroke="#d6d3d1" stroke-width="1"/>
+    <g font-size="11" fill="#57534e" text-anchor="middle">
+      <line x1="40"  y1="210" x2="40"  y2="215" stroke="#d6d3d1"/><text x="40"  y="230">$400M</text>
+      <line x1="195" y1="210" x2="195" y2="215" stroke="#d6d3d1"/><text x="195" y="230">$500M</text>
+      <line x1="350" y1="210" x2="350" y2="215" stroke="#d6d3d1"/><text x="350" y="230">$600M</text>
+      <line x1="505" y1="210" x2="505" y2="215" stroke="#d6d3d1"/><text x="505" y="230">$700M</text>
+      <line x1="660" y1="210" x2="660" y2="215" stroke="#d6d3d1"/><text x="660" y="230">$800M</text>
+    </g>
+  </svg>
+  <p class="note">Each method gives a range, not an answer — the deal gets negotiated where the ranges overlap. The sentiment layer below decides where in that band you land, or whether to move at all.</p>
+</section>
+
+<section>
+  <h2>The question</h2>
+  <blockquote class="quote">Should this studio be on our shortlist — and in what price range?</blockquote>
+  <p class="note">Today: a Wall-Street-style tool produces a templated profile, then hours of reading news and filings by hand to form a view.</p>
+</section>
+
+<section>
+  <h2>The workflow</h2>
+  <div class="flow">
+    <div>
+      <div class="stage-label">Files in</div>
+      <div class="stack">
+        <div class="box">Templated company profile (PDF)</div>
+        <div class="box">Recent news + shareholder info</div>
+      </div>
+    </div>
+    <div class="flow-arrow" aria-hidden="true">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+        <path d="M1 6h14M11 2l5 4-5 4" stroke="#a8a29e" stroke-width="1.2" stroke-linejoin="miter"/>
+      </svg>
+    </div>
+    <div>
+      <div class="stage-label">The agent works</div>
+      <div class="box box-accent">
+        <ol class="steps">
+          <li>extracts the financials</li>
+          <li>builds the comparables table</li>
+          <li>reads &amp; classifies 90 days of news</li>
+          <li>drafts the enriched profile</li>
+        </ol>
+      </div>
+    </div>
+    <div class="flow-arrow" aria-hidden="true">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+        <path d="M1 6h14M11 2l5 4-5 4" stroke="#a8a29e" stroke-width="1.2" stroke-linejoin="miter"/>
+      </svg>
+    </div>
+    <div>
+      <div class="stage-label">Artifacts out</div>
+      <div class="stack">
+        <div class="box">One-page profile + sentiment section, every claim cited</div>
+        <div class="box">A reusable skill — run it on any studio name</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>The valuation math, in three lines</h2>
+  <div class="cards">
+    <div class="card">
+      <strong>Comparables</strong>
+      <p>What similar studios are valued at today, e.g. 4–6× revenue.</p>
+    </div>
+    <div class="card">
+      <strong>Precedent deals</strong>
+      <p>What acquirers actually paid for studios like this one.</p>
+    </div>
+    <div class="card">
+      <strong>DCF</strong>
+      <p>Project the future cash flows, discount them back to today.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>What the answer looks like</h2>
+  <figure style="margin:0">
+    <p class="chart-title">EV / Revenue multiples · comparable studios (example data)</p>
+    <div class="chart-scroll">
+      <svg class="chart" viewBox="0 0 700 172" role="img" aria-labelledby="ctitle cdesc">
+        <title id="ctitle">EV / Revenue multiples for comparable studios, example data</title>
+        <desc id="cdesc">Four comparable studios plot at 4.1, 4.8, 5.5 and 6.0 times revenue. Target Studio Aurora, at $120 million revenue, implies a range of $480–720 million, spanning 4.0× to 6.0×.</desc>
+        <!-- Band 4.0×–6.0×. x = 50 + (m − 3) × 150 -->
+        <rect x="200" y="36" width="300" height="52" fill="#0070d1" fill-opacity="0.12"/>
+        <g fill="none" stroke="#e7e5e4" stroke-width="1">
+          <line x1="50" y1="36" x2="50" y2="128"/>
+          <line x1="200" y1="36" x2="200" y2="128"/>
+          <line x1="350" y1="36" x2="350" y2="128"/>
+          <line x1="500" y1="36" x2="500" y2="128"/>
+          <line x1="650" y1="36" x2="650" y2="128"/>
+        </g>
+        <text x="350" y="24" text-anchor="middle" fill="#1c1c1c" font-size="12" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">Target 'Studio Aurora': $120M revenue → implied $480–720M</text>
+        <g fill="#57534e">
+          <circle cx="215" cy="62" r="5"/>
+          <circle cx="320" cy="62" r="5"/>
+          <circle cx="425" cy="62" r="5"/>
+          <circle cx="500" cy="62" r="5"/>
+        </g>
+        <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#57534e" text-anchor="middle">
+          <text x="215" y="106">Studio P</text>
+          <text x="215" y="120">4.1×</text>
+          <text x="320" y="106">Studio Q</text>
+          <text x="320" y="120">4.8×</text>
+          <text x="425" y="106">Studio R</text>
+          <text x="425" y="120">5.5×</text>
+          <text x="500" y="106">Studio S</text>
+          <text x="500" y="120">6.0×</text>
+        </g>
+        <!-- One axis -->
+        <line x1="50" y1="128" x2="650" y2="128" stroke="#a8a29e" stroke-width="1.2"/>
+        <g fill="none" stroke="#a8a29e" stroke-width="1.2">
+          <line x1="50" y1="128" x2="50" y2="134"/>
+          <line x1="200" y1="128" x2="200" y2="134"/>
+          <line x1="350" y1="128" x2="350" y2="134"/>
+          <line x1="500" y1="128" x2="500" y2="134"/>
+          <line x1="650" y1="128" x2="650" y2="134"/>
+        </g>
+        <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#57534e" text-anchor="middle">
+          <text x="50" y="150">3×</text>
+          <text x="200" y="150">4×</text>
+          <text x="350" y="150">5×</text>
+          <text x="500" y="150">6×</text>
+          <text x="650" y="150">7×</text>
+        </g>
+      </svg>
+    </div>
+  </figure>
+</section>
+
+<section>
+  <h2>The sentiment layer</h2>
+  <div class="sentiment">
+    <div class="sentiment-head">Studio Aurora — news scan, last 90 days · 14 items</div>
+    <div class="sentiment-body">
+      <div class="flag">
+        <span class="swatch swatch-watch" aria-hidden="true"></span>
+        <p><strong>Watch</strong> — Lead designer departed (June), cited in 4 items</p>
+      </div>
+      <div class="flag">
+        <span class="swatch swatch-watch" aria-hidden="true"></span>
+        <p><strong>Watch</strong> — Flagship title delayed to 2027 (August)</p>
+      </div>
+      <div class="flag">
+        <span class="swatch swatch-positive" aria-hidden="true"></span>
+        <p><strong>Positive</strong> — Studio won industry award (July)</p>
+      </div>
+    </div>
+    <div class="sentiment-foot">Read: proceed, but price toward the lower half of the range.</div>
+  </div>
+  <p class="note sentiment-note">The sentiment layer never changes the math — it changes confidence, price and timing. Every flag links back to its source.</p>
+</section>
+
+<section>
+  <h2>Before / after</h2>
+  <div class="ba">
+    <p><span>By hand today</span>templated report, then hours of reading news and filings per candidate.</p>
+    <p><span>With an agent</span>the same profile, enriched and cited, in minutes — repeatable across the whole shortlist.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Studio Aurora and all numbers are fictional.</p>
+  <a href="../revenue-concentration/">← Revenue concentration</a>
+</footer>
+
+</div>
+</body>
+</html>

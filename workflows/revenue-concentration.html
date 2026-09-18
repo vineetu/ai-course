@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revenue concentration analysis</title>
+<style>
+  :root { color-scheme: only light; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: #fafaf9;
+    color: #1c1c1c;
+    font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 24px;
+  }
+  a {
+    color: #0070d1;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+  a:hover { color: #1c1c1c; }
+
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px 20px;
+    flex-wrap: wrap;
+    padding: 18px 0 16px;
+    border-bottom: 1px solid #e7e5e4;
+    font-size: 13px;
+    color: #57534e;
+  }
+  nav a { font-size: 13px; }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin: 0 0 10px;
+  }
+  .sub {
+    margin: 0;
+    color: #57534e;
+    font-size: 16px;
+    line-height: 1.45;
+    max-width: 38em;
+  }
+  .page-head { padding: 36px 0 8px; }
+
+  section { padding: 40px 0 0; }
+  h2 {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #57534e;
+    margin: 0 0 14px;
+  }
+
+  .quote {
+    margin: 0 0 12px;
+    padding: 14px 16px;
+    border: 1px solid #e7e5e4;
+    border-left: 2px solid #1c1c1c;
+    font-size: 16px;
+    line-height: 1.45;
+    color: #1c1c1c;
+  }
+  .note {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #57534e;
+  }
+
+  /* Workflow */
+  .flow {
+    display: grid;
+    grid-template-columns: 1fr 20px 1fr 20px 1fr;
+    gap: 0 6px;
+    align-items: start;
+  }
+  .stage-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #57534e;
+    margin: 0 0 8px;
+  }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .box {
+    border: 1px solid #e7e5e4;
+    background: #fff;
+    padding: 12px 14px;
+    font-size: 13.5px;
+    line-height: 1.4;
+    color: #1c1c1c;
+  }
+  .box-accent {
+    border: 1.5px solid #0070d1;
+    padding: 14px 14px 12px;
+  }
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    min-height: 72px;
+    padding-top: 22px;
+  }
+  .steps {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .steps li {
+    position: relative;
+    padding: 0 0 12px 18px;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #1c1c1c;
+  }
+  .steps li:last-child { padding-bottom: 0; }
+  .steps li::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 5px;
+    width: 6px;
+    height: 6px;
+    border: 1.5px solid #a8a29e;
+    background: #fff;
+    border-radius: 50%;
+  }
+  .steps li::after {
+    content: "";
+    position: absolute;
+    left: 3.5px;
+    top: 13px;
+    bottom: 0;
+    width: 1px;
+    background: #e7e5e4;
+  }
+  .steps li:last-child::after { display: none; }
+
+  /* Chart */
+  .chart-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0 0 12px;
+    color: #1c1c1c;
+    letter-spacing: -0.01em;
+  }
+  .chart-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .chart {
+    display: block;
+    width: 100%;
+    min-width: 620px;
+    height: auto;
+  }
+  .caption {
+    margin: 10px 0 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: #57534e;
+  }
+
+  /* Three numbers */
+  .cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+  }
+  .card {
+    border: 1px solid #e7e5e4;
+    background: #fff;
+    padding: 16px 16px 18px;
+  }
+  .card strong {
+    display: block;
+    font-size: 15px;
+    font-weight: 650;
+    margin: 0 0 6px;
+    letter-spacing: -0.01em;
+  }
+  .card p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.45;
+    color: #57534e;
+  }
+
+  /* Before / after */
+  .ba {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+  }
+  .ba p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.5;
+    color: #1c1c1c;
+  }
+  .ba p span {
+    color: #57534e;
+    font-weight: 600;
+    display: block;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin: 0 0 8px;
+  }
+
+  footer {
+    margin-top: 48px;
+    padding: 18px 0 56px;
+    border-top: 1px solid #e7e5e4;
+    font-size: 13px;
+    color: #57534e;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 8px 20px;
+    flex-wrap: wrap;
+  }
+  footer p { margin: 0; }
+
+  @media (max-width: 600px) {
+    .flow {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+    .flow-arrow {
+      min-height: 0;
+      height: 28px;
+      padding: 0;
+    }
+    .flow-arrow svg { transform: rotate(90deg); }
+    .cards { grid-template-columns: 1fr; }
+    .ba { grid-template-columns: 1fr; gap: 20px; }
+    section { padding: 32px 0 0; }
+    .page-head { padding: 28px 0 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<nav>
+  <span>AI workshop · workflows</span>
+  <a href="../ma-evaluation/">M&amp;A evaluation →</a>
+</nav>
+
+<header class="page-head">
+  <h1>Revenue concentration analysis</h1>
+  <p class="sub">Where does the money actually come from — and how much of it rides on the top few titles?</p>
+</header>
+
+<section>
+  <h2>What is this?</h2>
+  <p>Revenue concentration asks one thing: how much of the money depends on how few titles?</p>
+  <svg viewBox="0 0 700 130" role="img" aria-label="Concentrated versus spread-out revenue" style="width:100%;height:auto;display:block;margin:12px 0 4px">
+    <defs>
+      <pattern id="tailslices" width="10" height="36" patternUnits="userSpaceOnUse">
+        <rect width="8" height="36" fill="#d6d3d1"/>
+      </pattern>
+    </defs>
+    <text x="10" y="16" font-size="11" fill="#57534e" letter-spacing="1.5">CONCENTRATED</text>
+    <rect x="10"  y="28" width="60" height="36" rx="2" fill="#0070d1"/>
+    <rect x="72"  y="28" width="45" height="36" rx="2" fill="#0070d1"/>
+    <rect x="119" y="28" width="35" height="36" rx="2" fill="#0070d1"/>
+    <rect x="156" y="28" width="30" height="36" rx="2" fill="#0070d1"/>
+    <rect x="188" y="28" width="25" height="36" rx="2" fill="#0070d1"/>
+    <rect x="215" y="28" width="95" height="36" fill="url(#tailslices)"/>
+    <text x="10" y="90" font-size="13" font-weight="600" fill="#1c1c1c">Top 10 = 65% of revenue</text>
+    <text x="10" y="108" font-size="12" fill="#57534e">ten bets — one flop moves the total</text>
+    <text x="380" y="16" font-size="11" fill="#57534e" letter-spacing="1.5">SPREAD OUT</text>
+    <rect x="380" y="28" width="8" height="36" rx="2" fill="#0070d1"/>
+    <rect x="390" y="28" width="8" height="36" rx="2" fill="#0070d1"/>
+    <rect x="400" y="28" width="8" height="36" rx="2" fill="#0070d1"/>
+    <rect x="410" y="28" width="8" height="36" rx="2" fill="#0070d1"/>
+    <rect x="420" y="28" width="8" height="36" rx="2" fill="#0070d1"/>
+    <rect x="430" y="28" width="250" height="36" fill="url(#tailslices)"/>
+    <text x="380" y="90" font-size="13" font-weight="600" fill="#1c1c1c">Top 10 = 15% of revenue</text>
+    <text x="380" y="108" font-size="12" fill="#57534e">no single title can move the total</text>
+  </svg>
+  <p class="note">Same total revenue — very different risk. The analysis measures which of these you are, and which way it is drifting quarter over quarter. (Blue = top 10 titles, grey = everything else.)</p>
+</section>
+
+<section>
+  <h2>The question</h2>
+  <blockquote class="quote">Is revenue isolated to a handful of AAA games, or is it concentrating in a specific area?</blockquote>
+  <p class="note">You already have the data — purchased market reports and internal flat files. Today the answer is assembled by hand in Excel.</p>
+</section>
+
+<section>
+  <h2>The workflow</h2>
+  <div class="flow">
+    <div>
+      <div class="stage-label">Files in</div>
+      <div class="stack">
+        <div class="box">Market reports (PDF)</div>
+        <div class="box">Sales flat files (CSV / Excel)</div>
+      </div>
+    </div>
+    <div class="flow-arrow" aria-hidden="true">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+        <path d="M1 6h14M11 2l5 4-5 4" stroke="#a8a29e" stroke-width="1.2" stroke-linejoin="miter"/>
+      </svg>
+    </div>
+    <div>
+      <div class="stage-label">The agent works</div>
+      <div class="box box-accent">
+        <ol class="steps">
+          <li>reads the files</li>
+          <li>groups by title, genre, region</li>
+          <li>ranks &amp; computes shares</li>
+          <li>drafts the memo</li>
+        </ol>
+      </div>
+    </div>
+    <div class="flow-arrow" aria-hidden="true">
+      <svg width="18" height="12" viewBox="0 0 18 12" fill="none">
+        <path d="M1 6h14M11 2l5 4-5 4" stroke="#a8a29e" stroke-width="1.2" stroke-linejoin="miter"/>
+      </svg>
+    </div>
+    <div>
+      <div class="stage-label">Artifacts out</div>
+      <div class="stack">
+        <div class="box">Chart + one-page memo</div>
+        <div class="box">A reusable skill — re-run next quarter in minutes</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>What the answer looks like</h2>
+  <figure style="margin:0">
+    <p class="chart-title">Top 10 titles · share of platform revenue (example data)</p>
+    <div class="chart-scroll">
+      <svg class="chart" viewBox="0 0 700 348" role="img" aria-labelledby="ctitle cdesc">
+        <title id="ctitle">Top 10 titles share of platform revenue, example data</title>
+        <desc id="cdesc">Ten titles hold 14, 11, 9, 7, 6, 5, 4, 3.5, 3, and 2.5 percent of revenue. The cumulative share of the top ten is 65 percent.</desc>
+        <g fill="none" stroke="#e7e5e4" stroke-width="1">
+          <line x1="50" y1="24" x2="590" y2="24"/>
+          <line x1="50" y1="90" x2="590" y2="90"/>
+          <line x1="50" y1="156" x2="590" y2="156"/>
+          <line x1="50" y1="222" x2="590" y2="222"/>
+          <line x1="50" y1="288" x2="590" y2="288"/>
+          <line x1="50" y1="24" x2="50" y2="288"/>
+        </g>
+        <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12" fill="#57534e">
+          <text x="44" y="28" text-anchor="end">100%</text>
+          <text x="44" y="94" text-anchor="end">75%</text>
+          <text x="44" y="160" text-anchor="end">50%</text>
+          <text x="44" y="226" text-anchor="end">25%</text>
+          <text x="44" y="292" text-anchor="end">0%</text>
+        </g>
+        <g fill="#0070d1">
+          <path d="M61,288 L61,255.04 Q61,251.04 65.04,251.04 L107,251.04 Q111,251.04 111,255.04 L111,288 Z"/>
+          <path d="M113,288 L113,262.96 Q113,258.96 117,258.96 L159,258.96 Q163,258.96 163,262.96 L163,288 Z"/>
+          <path d="M165,288 L165,268.24 Q165,264.24 169,264.24 L211,264.24 Q215,264.24 215,268.24 L215,288 Z"/>
+          <path d="M217,288 L217,273.52 Q217,269.52 221,269.52 L263,269.52 Q267,269.52 267,273.52 L267,288 Z"/>
+          <path d="M269,288 L269,276.16 Q269,272.16 273.16,272.16 L315,272.16 Q319,272.16 319,276.16 L319,288 Z"/>
+          <path d="M321,288 L321,278.8 Q321,274.8 325,274.8 L367,274.8 Q371,274.8 371,278.8 L371,288 Z"/>
+          <path d="M373,288 L373,281.44 Q373,277.44 377,277.44 L419,277.44 Q423,277.44 423,281.44 L423,288 Z"/>
+          <path d="M425,288 L425,282.76 Q425,278.76 429,278.76 L471,278.76 Q475,278.76 475,282.76 L475,288 Z"/>
+          <path d="M477,288 L477,284.08 Q477,280.08 481,280.08 L523,280.08 Q527,280.08 527,284.08 L527,288 Z"/>
+          <path d="M529,288 L529,285.4 Q529,281.4 533,281.4 L575,281.4 Q579,281.4 579,285.4 L579,288 Z"/>
+        </g>
+        <path d="M86,251.04 H138 V222 H190 V198.24 H242 V179.76 H294 V163.92 H346 V150.72 H398 V140.16 H450 V130.92 H502 V123 H554 V116.4" fill="none" stroke="#57534e" stroke-width="1.5" stroke-linejoin="miter"/>
+        <circle cx="554" cy="116.4" r="3.5" fill="#57534e"/>
+        <g font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif" font-size="12">
+          <text x="86" y="243" text-anchor="middle" fill="#1c1c1c">14%</text>
+          <text x="138" y="251" text-anchor="middle" fill="#1c1c1c">11%</text>
+          <text x="190" y="256.5" text-anchor="middle" fill="#1c1c1c">9%</text>
+          <text x="566" y="120" fill="#57534e">Top 10 = 65%</text>
+          <text x="86" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,86,304)">Title A</text>
+          <text x="138" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,138,304)">Title B</text>
+          <text x="190" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,190,304)">Title C</text>
+          <text x="242" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,242,304)">Title D</text>
+          <text x="294" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,294,304)">Title E</text>
+          <text x="346" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,346,304)">Title F</text>
+          <text x="398" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,398,304)">Title G</text>
+          <text x="450" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,450,304)">Title H</text>
+          <text x="502" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,502,304)">Title I</text>
+          <text x="554" y="304" text-anchor="end" fill="#57534e" transform="rotate(-40,554,304)">Title J</text>
+        </g>
+      </svg>
+    </div>
+    <figcaption class="caption">Two thirds of revenue in ten titles — and the quarter-over-quarter direction of that number is the real answer.</figcaption>
+  </figure>
+</section>
+
+<section>
+  <h2>Three numbers that measure it</h2>
+  <div class="cards">
+    <div class="card">
+      <strong>Top-N share</strong>
+      <p>How much of total revenue the biggest N titles hold.</p>
+    </div>
+    <div class="card">
+      <strong>HHI</strong>
+      <p>Sum of squared shares. Below 1,500: spread out. Above 2,500: concentrated.</p>
+    </div>
+    <div class="card">
+      <strong>The trend</strong>
+      <p>The same number, tracked quarter over quarter. Direction matters more than level.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Before / after</h2>
+  <div class="ba">
+    <p><span>By hand today</span>2–3 days in Excel per refresh, redone from scratch each quarter.</p>
+    <p><span>With an agent</span>minutes from files to memo — and the method is saved as a skill anyone on the team can re-run.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Example numbers are illustrative, not real data.</p>
+  <a href="../ma-evaluation/">Next: M&amp;A evaluation →</a>
+</footer>
+
+</div>
+</body>
+</html>
